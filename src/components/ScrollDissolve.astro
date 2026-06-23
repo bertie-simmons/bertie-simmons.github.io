@@ -1,0 +1,224 @@
+---
+// Wraps two full-screen layers (passed in via the "top" and "bottom" slots)
+// and pins the viewport for exactly one screen-height of scroll while the
+// top layer dissolves away — via a glitchy character grid — to reveal the
+// bottom layer underneath.
+//
+// Pass your "before" section into slot="top" and your "after" section into
+// slot="bottom". Only two layers are supported by this component; the
+// original 5-image version this was adapted from generalized to N layers,
+// but N is hardcoded to 2 here since that's exactly what gets queried by
+// `.spotlight-layer` below.
+---
+
+<section class="spotlight">
+  <div class="spotlight-layer">
+    <slot name="top" />
+  </div>
+  <div class="spotlight-layer">
+    <slot name="bottom" />
+  </div>
+
+  <div class="dissolve-grid"></div>
+</section>
+
+<style>
+  .spotlight {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .spotlight-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%);
+    will-change: clip-path;
+  }
+</style>
+
+<style is:global>
+  /* Global because .dissolve-cell elements are created dynamically by the
+     script below and never receive this component's scoped data-attribute. */
+  .dissolve-grid {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 100;
+    pointer-events: none;
+    --dissolve-color: lightgrey;
+  }
+
+  .dissolve-cell {
+    position: absolute;
+    background-color: var(--dissolve-color);
+    color: #000;
+    font-family: "DM Mono", monospace;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    visibility: hidden; /* toggled via JS for perf over opacity */
+  }
+</style>
+
+<script>
+  // @ts-nocheck -- gsap / ScrollTrigger / Lenis come from CDN <script> tags
+  // in the page <head>, not from npm, so there are no types for them here.
+
+  gsap.registerPlugin(ScrollTrigger);
+
+  const lenis = new Lenis();
+  lenis.on("scroll", ScrollTrigger.update);
+  gsap.ticker.add((time) => {
+    lenis.raf(time * 1000);
+  });
+  gsap.ticker.lagSmoothing(0);
+
+  const config = {
+    cellSize: 18,
+    spreadAbove: 0.25,
+    spreadBelow: 0.25,
+    scatter: 0.1,
+    densityCore: 0.4,
+    threshold: 1,
+    color: "lightgrey",
+    charSet: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%&*+=",
+  };
+
+  const layers = document.querySelectorAll(".spotlight-layer");
+  const gridContainer = document.querySelector(".dissolve-grid");
+  const totalLayers = layers.length;
+  const totalTransitions = totalLayers - 1;
+
+  gridContainer.style.setProperty("--dissolve-color", config.color);
+
+  // First slot (top) stays visually on top until it dissolves away.
+  layers.forEach((layer, index) => {
+    layer.style.zIndex = totalLayers - index;
+  });
+
+  const cols = Math.ceil(window.innerWidth / config.cellSize);
+  const rows = Math.ceil(window.innerHeight / config.cellSize);
+  const fontSize = config.cellSize * 0.8;
+
+  const cellsData = [];
+  const cellElements = [];
+
+  function getRandomChar() {
+    return config.charSet[Math.floor(Math.random() * config.charSet.length)];
+  }
+
+  function hash(r, c, seed) {
+    const x = Math.sin(r * 12.9898 + c * 78.233 + seed) * 43758.5453123;
+    return x - Math.floor(x);
+  }
+
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const cell = document.createElement("div");
+      cell.className = "dissolve-cell";
+      cell.style.width = `${config.cellSize}px`;
+      cell.style.height = `${config.cellSize}px`;
+      cell.style.left = `${c * config.cellSize}px`;
+      cell.style.top = `${r * config.cellSize}px`;
+      cell.style.fontSize = `${fontSize}px`;
+      cell.innerText = getRandomChar();
+
+      gridContainer.appendChild(cell);
+      cellElements.push(cell);
+
+      const normY = r / (rows - 1);
+
+      cellsData.push({
+        normY,
+        threshold: hash(r, c, 123.45),
+        scatterOffset: (hash(r, c, 678.9) - 0.5) * config.scatter,
+      });
+    }
+  }
+
+  function updateImageClips(index, localProgress) {
+    layers.forEach((layer, i) => {
+      if (i === index) {
+        const clipPercent = Math.max(
+          0,
+          Math.min(100, (localProgress + config.spreadAbove) * 100)
+        );
+        layer.style.clipPath = `polygon(0% ${clipPercent}%, 100% ${clipPercent}%, 100% 100%, 0% 100%)`;
+      }
+    });
+  }
+
+  const totalTravelRange = 1 + config.spreadAbove + config.spreadBelow;
+
+  function updateDissolveGrid(bandCenter) {
+    for (let i = 0; i < cellsData.length; i++) {
+      const cell = cellsData[i];
+      const el = cellElements[i];
+
+      const rawDistance = cell.normY - bandCenter;
+      const distFromCenter = Math.abs(rawDistance);
+
+      const scatterAmt = Math.max(0, distFromCenter - config.densityCore);
+      const noisyDistance = rawDistance + cell.scatterOffset * scatterAmt;
+
+      if (
+        noisyDistance > config.spreadBelow ||
+        noisyDistance < -config.spreadAbove
+      ) {
+        el.style.visibility = "hidden";
+        continue;
+      }
+
+      const normDist =
+        noisyDistance > 0
+          ? noisyDistance / config.spreadBelow
+          : -noisyDistance / config.spreadAbove;
+      const density = 1.0 - normDist * normDist;
+
+      if (density > cell.threshold * config.threshold) {
+        el.style.visibility = "visible";
+        if (Math.random() > 0.85) el.innerText = getRandomChar();
+      } else {
+        el.style.visibility = "hidden";
+      }
+    }
+  }
+
+  function hideAllCells() {
+    cellElements.forEach((el) => (el.style.visibility = "hidden"));
+  }
+
+  ScrollTrigger.create({
+    trigger: ".spotlight",
+    start: "top top",
+    end: () => `+=${totalTransitions * window.innerHeight}`,
+    pin: true,
+    scrub: true,
+    onUpdate: (self) => {
+      const progress = self.progress;
+
+      const rawIndex = progress * totalTransitions;
+      let index = Math.floor(rawIndex);
+      if (index >= totalTransitions) index = totalTransitions - 1;
+
+      const localProgress = rawIndex - index;
+
+      const bandCenter = -config.spreadAbove + localProgress * totalTravelRange;
+
+      if (localProgress <= 0 || localProgress >= 1) {
+        hideAllCells();
+        updateImageClips(index, localProgress);
+      } else {
+        updateImageClips(index, localProgress);
+        updateDissolveGrid(bandCenter);
+      }
+    },
+  });
+</script>

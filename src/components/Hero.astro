@@ -1,11 +1,11 @@
 ---
-
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 ---
 
 <section class="hero">
-  <canvas id="grid"></canvas>
+  <canvas id="grid" aria-hidden="true"></canvas>
   <div class="name">
-    <img src="/name.png" id="source" alt="Name" />
+    <img src={`${base}/name.png`} id="source" alt="Bertram Simmons" width="1200" height="300" />
   </div>
 </section>
 
@@ -14,7 +14,7 @@
     position: relative;
     width: 100%;
     height: 100vh;
-    background-color: #ffffff;
+    background-color: var(--bg);
   }
 
   canvas {
@@ -33,38 +33,54 @@
 
   .name img {
     width: 100%;
-    height: 100%;
+    height: auto;
     object-fit: contain;
     display: block;
-     visibility: hidden;
+    visibility: hidden; /* sampled into the canvas grid, never shown directly */
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .name img {
+      visibility: visible;
+    }
+
+    canvas {
+      display: none;
+    }
   }
 </style>
 
 <script>
-  // @ts-nocheck
-  
-  let CELL_SIZE = 5;
-  let CELL_GAP = 1;
-  let CELL_STEP = CELL_SIZE + CELL_GAP;
-  const GRID_COLOR = "#ffffff";
-  const CHAR_COLOR = "#000000";
-  const ASCII_CHARS = "<?:>#0369BERTRAMSIMMMONS";
-  const THRESHOLD = 0.5;
-  const PUSH_RADIUS = 5;
-  const PUSH_FORCE = 30;
-  const SPRING = 0.025;
-  const DAMPING = 0.5;
+  // @ts-nocheck -- terse imperative canvas code
+
+  const REDUCED_MOTION = window.matchMedia(
+    "(prefers-reduced-motion: reduce)"
+  ).matches;
 
   const canvas = document.getElementById("grid");
-  const ctx = canvas.getContext("2d", { alpha: true });
-  const dpr = window.devicePixelRatio || 1;
   const nameImg = document.getElementById("source");
+  const hero = document.querySelector(".hero");
 
-  let cols,
-      rows,
-      cells = [];
+  if (canvas && nameImg && !REDUCED_MOTION) {
+    const ctx = canvas.getContext("2d", { alpha: true });
+    const dpr = window.devicePixelRatio || 1;
 
-  function setupCanvas() {
+    const GRID_COLOR = "#ffffff";
+    const CHAR_COLOR = "#000000";
+    const ASCII_CHARS = "<?:>#0369BERTRAMSIMMMONS";
+    const THRESHOLD = 0.5;
+    const PUSH_RADIUS = 5;
+    const PUSH_FORCE = 30;
+    const SPRING = 0.025;
+    const DAMPING = 0.5;
+
+    let CELL_SIZE = 5;
+    let CELL_GAP = 1;
+    let CELL_STEP = CELL_SIZE + CELL_GAP;
+    let cols, rows;
+    let cells = [];
+
+    function setupCanvas() {
       CELL_SIZE = window.innerWidth < 768 ? 3 : 8;
       CELL_GAP = window.innerWidth < 768 ? 1 : 2;
       CELL_STEP = CELL_SIZE + CELL_GAP;
@@ -73,23 +89,11 @@
       canvas.width = window.innerWidth * dpr;
       canvas.height = window.innerHeight * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  }
+    }
 
-  function drawGrid() {
-      ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
-      ctx.fillStyle = GRID_COLOR;
-      for (let row = 0; row < rows; row++) {
-          for (let col = 0; col < cols; col++) {
-              ctx.fillRect(col * CELL_STEP, row * CELL_STEP, CELL_SIZE, CELL_SIZE);
-          }
-      }
-  }
-
-  setupCanvas();
-  drawGrid();
-
-  function sampleNameIntoCells() {
+    function sampleNameIntoCells() {
       const rect = nameImg.getBoundingClientRect();
+      if (rect.width < 1 || rect.height < 1) return false;
       const nameCols = Math.ceil(rect.width / CELL_STEP);
       const nameRows = Math.ceil(rect.height / CELL_STEP);
       const startCol = Math.floor(rect.left / CELL_STEP);
@@ -106,45 +110,49 @@
 
       cells = [];
       for (let row = 0; row < rows; row++) {
-          for (let col = 0; col < cols; col++) {
-              const inName =
-                  col >= startCol &&
-                  col < startCol + nameCols &&
-                  row >= startRow &&
-                  row < startRow + nameRows;
-              let isLit = false,
-                  char = " ";
-              if (inName) {
-                  const idx = ((row - startRow) * nameCols + (col - startCol)) * 4;
-                  const brightness =
-                      (data[idx] * 0.299 + data[idx + 1] * 0.587 + data[idx + 2] * 0.114) /
-                      255;
-                  isLit = brightness > THRESHOLD;
-                  char = isLit
-                      ? ASCII_CHARS[
-                            Math.min(
-                                ASCII_CHARS.length - 1,
-                                Math.floor(brightness * ASCII_CHARS.length)
-                            )
-                        ]
-                      : " ";
-              }
-
-              cells.push({
-                  col,
-                  row,
-                  char,
-                  isLit,
-                  offsetX: 0,
-                  offsetY: 0,
-                  velX: 0,
-                  velY: 0,
-              });
+        for (let col = 0; col < cols; col++) {
+          const inName =
+            col >= startCol &&
+            col < startCol + nameCols &&
+            row >= startRow &&
+            row < startRow + nameRows;
+          let isLit = false;
+          let char = " ";
+          if (inName) {
+            const idx =
+              ((row - startRow) * nameCols + (col - startCol)) * 4;
+            const brightness =
+              (data[idx] * 0.299 +
+                data[idx + 1] * 0.587 +
+                data[idx + 2] * 0.114) /
+              255;
+            isLit = brightness > THRESHOLD;
+            char = isLit
+              ? ASCII_CHARS[
+                  Math.min(
+                    ASCII_CHARS.length - 1,
+                    Math.floor(brightness * ASCII_CHARS.length)
+                  )
+                ]
+              : " ";
           }
-      }
-  }
 
-  function renderFrame() {
+          cells.push({
+            col,
+            row,
+            char,
+            isLit,
+            offsetX: 0,
+            offsetY: 0,
+            velX: 0,
+            velY: 0,
+          });
+        }
+      }
+      return true;
+    }
+
+    function renderFrame() {
       ctx.font = `${CELL_SIZE + 2}px monospace`;
       ctx.textBaseline = "top";
       ctx.textAlign = "center";
@@ -152,89 +160,132 @@
 
       ctx.fillStyle = GRID_COLOR;
       for (const { col, row } of cells) {
-          ctx.fillRect(col * CELL_STEP, row * CELL_STEP, CELL_SIZE, CELL_SIZE);
+        ctx.fillRect(col * CELL_STEP, row * CELL_STEP, CELL_SIZE, CELL_SIZE);
       }
 
       ctx.fillStyle = CHAR_COLOR;
       for (const { col, row, char, isLit, offsetX, offsetY } of cells) {
-          if (!isLit) continue;
-          const x = (col + Math.round(offsetX)) * CELL_STEP;
-          const y = (row + Math.round(offsetY)) * CELL_STEP;
-          ctx.fillText(char, x + CELL_SIZE / 2, y);
+        if (!isLit) continue;
+        const x = (col + Math.round(offsetX)) * CELL_STEP;
+        const y = (row + Math.round(offsetY)) * CELL_STEP;
+        ctx.fillText(char, x + CELL_SIZE / 2, y);
       }
-  }
+    }
 
-  function init() {
-      setupCanvas();
-      sampleNameIntoCells();
-      renderFrame();
-  }
+    const mouse = { col: -999, row: -999, isMoving: false };
+    let idleTimer = null;
 
-  window.addEventListener("resize", init);
-  nameImg.complete ? init() : nameImg.addEventListener("load", init);
-
-
-  // flicker
-  setInterval(() => {
+    function updatePhysics() {
       for (const cell of cells) {
-          if (cell.isLit) cell.char = ASCII_CHARS[Math.floor(Math.random() * ASCII_CHARS.length)];
-      }
-      renderFrame();
-  }, 50);
-
-  let mouse = { col: -999, row: -999, isMoving: false };
-  let idleTimer = null;
-
-
-  // physics
-  function updatePhysics() {
-      for (const cell of cells) { 
-          if (!cell.isLit) continue;
-              if (mouse.isMoving) {
-                  const dx = cell.col + cell.offsetX - mouse.col;
-                  const dy = cell.row + cell.offsetY - mouse.row;
-                  const dist = Math.sqrt(dx * dx + dy * dy);
-                  if (dist < PUSH_RADIUS && dist > 0) {
-                      const force = (1 - dist / PUSH_RADIUS) ** 2 * PUSH_FORCE;
-                      cell.velX += (dx / dist) * force;
-                      cell.velY += (dy / dist) * force;
-                  }
-              }
-              cell.velX += -cell.offsetX * SPRING;
-              cell.velY += -cell.offsetY * SPRING;
-              cell.velX *= DAMPING;
-              cell.velY *= DAMPING;
-              cell.offsetX += cell.velX;
-              cell.offsetY += cell.velY;
-              if (Math.abs(cell.offsetX) < 0.01 && Math.abs(cell.velX) < 0.01) {
-                  cell.offsetX = cell.velX = 0;
-              }
-              if (Math.abs(cell.offsetY) < 0.01 && Math.abs(cell.velY) < 0.01) {
-                  cell.offsetY = cell.velY = 0;
+        if (!cell.isLit) continue;
+        if (mouse.isMoving) {
+          const dx = cell.col + cell.offsetX - mouse.col;
+          const dy = cell.row + cell.offsetY - mouse.row;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < PUSH_RADIUS && dist > 0) {
+            const force = (1 - dist / PUSH_RADIUS) ** 2 * PUSH_FORCE;
+            cell.velX += (dx / dist) * force;
+            cell.velY += (dy / dist) * force;
           }
+        }
+        cell.velX += -cell.offsetX * SPRING;
+        cell.velY += -cell.offsetY * SPRING;
+        cell.velX *= DAMPING;
+        cell.velY *= DAMPING;
+        cell.offsetX += cell.velX;
+        cell.offsetY += cell.velY;
+        if (Math.abs(cell.offsetX) < 0.01 && Math.abs(cell.velX) < 0.01) {
+          cell.offsetX = cell.velX = 0;
+        }
+        if (Math.abs(cell.offsetY) < 0.01 && Math.abs(cell.velY) < 0.01) {
+          cell.offsetY = cell.velY = 0;
+        }
       }
-  }
+    }
 
-  function animationLoop () {
+    // --- run-loop lifecycle: only animate while the hero is on-screen ---
+    let rafId = null;
+    let flickerId = null;
+    let running = false;
+
+    function tick() {
       updatePhysics();
       renderFrame();
-      requestAnimationFrame(animationLoop);
-  }
+      rafId = requestAnimationFrame(tick);
+    }
 
-  window.addEventListener("mousemove", (e) => {
+    function start() {
+      if (running) return;
+      running = true;
+      tick();
+      flickerId = window.setInterval(() => {
+        for (const cell of cells) {
+          if (cell.isLit)
+            cell.char =
+              ASCII_CHARS[Math.floor(Math.random() * ASCII_CHARS.length)];
+        }
+        renderFrame();
+      }, 50);
+    }
+
+    function stop() {
+      running = false;
+      if (rafId) cancelAnimationFrame(rafId);
+      if (flickerId) clearInterval(flickerId);
+      rafId = flickerId = null;
+    }
+
+    let initTries = 0;
+    function init() {
+      setupCanvas();
+      // The name image drives the lit cells; if it hasn't been laid out yet
+      // (zero-size box), retry on the next frame rather than throwing.
+      if (!sampleNameIntoCells() && initTries++ < 60) {
+        requestAnimationFrame(init);
+        return;
+      }
+      initTries = 0;
+      renderFrame();
+    }
+
+    window.addEventListener("resize", init);
+    window.addEventListener("load", init);
+    nameImg.complete ? init() : nameImg.addEventListener("load", init);
+
+    window.addEventListener("mousemove", (e) => {
       mouse.col = e.clientX / CELL_STEP;
       mouse.row = e.clientY / CELL_STEP;
       mouse.isMoving = true;
       clearTimeout(idleTimer);
       idleTimer = setTimeout(() => {
-          mouse.isMoving = false;
+        mouse.isMoving = false;
       }, 50);
-  });
+    });
 
-  window.addEventListener("mouseleave", () => {
+    window.addEventListener("mouseleave", () => {
       mouse.col = mouse.row = -999;
       mouse.isMoving = false;
-  })
+    });
 
-  animationLoop();
+    let isOnScreen = true;
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) stop();
+      else if (isOnScreen) start();
+    });
+
+    if (hero && "IntersectionObserver" in window) {
+      const io = new IntersectionObserver(
+        ([entry]) => {
+          isOnScreen = entry.isIntersecting;
+          if (isOnScreen && !document.hidden) start();
+          else stop();
+        },
+        { threshold: 0 }
+      );
+      io.observe(hero);
+    } else {
+      start();
+    }
+  }
 </script>

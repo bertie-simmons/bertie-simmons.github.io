@@ -9,6 +9,9 @@
 // original 5-image version this was adapted from generalized to N layers,
 // but N is hardcoded to 2 here since that's exactly what gets queried by
 // `.spotlight-layer` below.
+//
+// Honours `prefers-reduced-motion`: the pin/scrub effect is skipped and the
+// bottom layer is simply shown beneath the top one.
 ---
 
 <section class="spotlight">
@@ -19,13 +22,13 @@
     <slot name="bottom" />
   </div>
 
-  <div class="dissolve-grid"></div>
+  <div class="dissolve-grid" aria-hidden="true"></div>
 </section>
 
 <style>
   .spotlight {
     position: relative;
-    width: 100vw;
+    width: 100%;
     height: 100vh;
     overflow: hidden;
   }
@@ -38,6 +41,24 @@
     height: 100%;
     clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%);
     will-change: clip-path;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .spotlight {
+      height: auto;
+      overflow: visible;
+    }
+
+    .spotlight-layer {
+      position: relative;
+      height: auto;
+      clip-path: none;
+      will-change: auto;
+    }
+
+    .dissolve-grid {
+      display: none;
+    }
   }
 </style>
 
@@ -52,14 +73,14 @@
     height: 100%;
     z-index: 100;
     pointer-events: none;
-    --dissolve-color: lightgrey;
+    --dissolve-color: var(--faint, lightgrey);
   }
 
   .dissolve-cell {
     position: absolute;
     background-color: var(--dissolve-color);
     color: #000;
-    font-family: "DM Mono", monospace;
+    font-family: var(--font-ascii, "IBM Plex Mono", monospace);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -68,157 +89,154 @@
 </style>
 
 <script>
-  // @ts-nocheck -- gsap / ScrollTrigger / Lenis come from CDN <script> tags
-  // in the page <head>, not from npm, so there are no types for them here.
-
-  gsap.registerPlugin(ScrollTrigger);
-
-  const lenis = new Lenis();
-  lenis.on("scroll", ScrollTrigger.update);
-  gsap.ticker.add((time) => {
-    lenis.raf(time * 1000);
-  });
-  gsap.ticker.lagSmoothing(0);
-
-  const config = {
-    cellSize: 18,
-    spreadAbove: 0.25,
-    spreadBelow: 0.25,
-    scatter: 0.1,
-    densityCore: 0.4,
-    threshold: 1,
-    color: "lightgrey",
-    charSet: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%&*+=",
-  };
+  // @ts-nocheck -- terse canvas/DOM style mutation; gsap + Lenis come from
+  // the shared scroll module (npm), not globals.
+  import { gsap, ScrollTrigger, getLenis, prefersReducedMotion } from "../lib/scroll";
 
   const layers = document.querySelectorAll(".spotlight-layer");
   const gridContainer = document.querySelector(".dissolve-grid");
-  const totalLayers = layers.length;
-  const totalTransitions = totalLayers - 1;
-
-  gridContainer.style.setProperty("--dissolve-color", config.color);
 
   // First slot (top) stays visually on top until it dissolves away.
   layers.forEach((layer, index) => {
-    layer.style.zIndex = totalLayers - index;
+    layer.style.zIndex = layers.length - index;
   });
 
-  const cols = Math.ceil(window.innerWidth / config.cellSize);
-  const rows = Math.ceil(window.innerHeight / config.cellSize);
-  const fontSize = config.cellSize * 0.8;
+  if (prefersReducedMotion || !gridContainer) {
+    // Nothing else to do — CSS above already stacks the layers statically.
+  } else {
+    getLenis();
 
-  const cellsData = [];
-  const cellElements = [];
+    const config = {
+      cellSize: 18,
+      spreadAbove: 0.25,
+      spreadBelow: 0.25,
+      scatter: 0.1,
+      densityCore: 0.4,
+      threshold: 1,
+      color: getComputedStyle(document.documentElement)
+        .getPropertyValue("--faint")
+        .trim() || "lightgrey",
+      charSet: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%&*+=",
+    };
 
-  function getRandomChar() {
-    return config.charSet[Math.floor(Math.random() * config.charSet.length)];
-  }
+    const totalLayers = layers.length;
+    const totalTransitions = totalLayers - 1;
 
-  function hash(r, c, seed) {
-    const x = Math.sin(r * 12.9898 + c * 78.233 + seed) * 43758.5453123;
-    return x - Math.floor(x);
-  }
+    gridContainer.style.setProperty("--dissolve-color", config.color);
 
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      const cell = document.createElement("div");
-      cell.className = "dissolve-cell";
-      cell.style.width = `${config.cellSize}px`;
-      cell.style.height = `${config.cellSize}px`;
-      cell.style.left = `${c * config.cellSize}px`;
-      cell.style.top = `${r * config.cellSize}px`;
-      cell.style.fontSize = `${fontSize}px`;
-      cell.innerText = getRandomChar();
+    const cols = Math.ceil(window.innerWidth / config.cellSize);
+    const rows = Math.ceil(window.innerHeight / config.cellSize);
+    const fontSize = config.cellSize * 0.8;
 
-      gridContainer.appendChild(cell);
-      cellElements.push(cell);
+    const cellsData = [];
+    const cellElements = [];
 
-      const normY = r / (rows - 1);
+    function getRandomChar() {
+      return config.charSet[Math.floor(Math.random() * config.charSet.length)];
+    }
 
-      cellsData.push({
-        normY,
-        threshold: hash(r, c, 123.45),
-        scatterOffset: (hash(r, c, 678.9) - 0.5) * config.scatter,
+    function hash(r, c, seed) {
+      const x = Math.sin(r * 12.9898 + c * 78.233 + seed) * 43758.5453123;
+      return x - Math.floor(x);
+    }
+
+    const frag = document.createDocumentFragment();
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const cell = document.createElement("div");
+        cell.className = "dissolve-cell";
+        cell.style.width = `${config.cellSize}px`;
+        cell.style.height = `${config.cellSize}px`;
+        cell.style.left = `${c * config.cellSize}px`;
+        cell.style.top = `${r * config.cellSize}px`;
+        cell.style.fontSize = `${fontSize}px`;
+        cell.innerText = getRandomChar();
+
+        frag.appendChild(cell);
+        cellElements.push(cell);
+
+        cellsData.push({
+          normY: r / (rows - 1),
+          threshold: hash(r, c, 123.45),
+          scatterOffset: (hash(r, c, 678.9) - 0.5) * config.scatter,
+        });
+      }
+    }
+    gridContainer.appendChild(frag);
+
+    function updateImageClips(index, localProgress) {
+      layers.forEach((layer, i) => {
+        if (i === index) {
+          const clipPercent = Math.max(0, Math.min(100, localProgress * 100));
+          layer.style.clipPath = `polygon(0% ${clipPercent}%, 100% ${clipPercent}%, 100% 100%, 0% 100%)`;
+        }
       });
     }
-  }
 
-  function updateImageClips(index, localProgress) {
-    layers.forEach((layer, i) => {
-      if (i === index) {
-        const clipPercent = Math.max(
-          0,
-          Math.min(100, localProgress * 100)
-        );
-        layer.style.clipPath = `polygon(0% ${clipPercent}%, 100% ${clipPercent}%, 100% 100%, 0% 100%)`;
-      }
-    });
-  }
+    const totalTravelRange = 1 + config.spreadAbove + config.spreadBelow;
 
-  const totalTravelRange = 1 + config.spreadAbove + config.spreadBelow;
+    function updateDissolveGrid(bandCenter) {
+      for (let i = 0; i < cellsData.length; i++) {
+        const cell = cellsData[i];
+        const el = cellElements[i];
 
-  function updateDissolveGrid(bandCenter) {
-    for (let i = 0; i < cellsData.length; i++) {
-      const cell = cellsData[i];
-      const el = cellElements[i];
+        const rawDistance = cell.normY - bandCenter;
+        const distFromCenter = Math.abs(rawDistance);
 
-      const rawDistance = cell.normY - bandCenter;
-      const distFromCenter = Math.abs(rawDistance);
+        const scatterAmt = Math.max(0, distFromCenter - config.densityCore);
+        const noisyDistance = rawDistance + cell.scatterOffset * scatterAmt;
 
-      const scatterAmt = Math.max(0, distFromCenter - config.densityCore);
-      const noisyDistance = rawDistance + cell.scatterOffset * scatterAmt;
+        if (
+          noisyDistance > config.spreadBelow ||
+          noisyDistance < -config.spreadAbove
+        ) {
+          el.style.visibility = "hidden";
+          continue;
+        }
 
-      if (
-        noisyDistance > config.spreadBelow ||
-        noisyDistance < -config.spreadAbove
-      ) {
-        el.style.visibility = "hidden";
-        continue;
-      }
+        const normDist =
+          noisyDistance > 0
+            ? noisyDistance / config.spreadBelow
+            : -noisyDistance / config.spreadAbove;
+        const density = 1.0 - normDist * normDist;
 
-      const normDist =
-        noisyDistance > 0
-          ? noisyDistance / config.spreadBelow
-          : -noisyDistance / config.spreadAbove;
-      const density = 1.0 - normDist * normDist;
-
-      if (density > cell.threshold * config.threshold) {
-        el.style.visibility = "visible";
-        if (Math.random() > 0.85) el.innerText = getRandomChar();
-      } else {
-        el.style.visibility = "hidden";
+        if (density > cell.threshold * config.threshold) {
+          el.style.visibility = "visible";
+          if (Math.random() > 0.85) el.innerText = getRandomChar();
+        } else {
+          el.style.visibility = "hidden";
+        }
       }
     }
+
+    function hideAllCells() {
+      cellElements.forEach((el) => (el.style.visibility = "hidden"));
+    }
+
+    ScrollTrigger.create({
+      trigger: ".spotlight",
+      start: "top top",
+      end: () => `+=${totalTransitions * window.innerHeight}`,
+      pin: true,
+      scrub: true,
+      invalidateOnRefresh: true,
+      onUpdate: (self) => {
+        const rawIndex = self.progress * totalTransitions;
+        let index = Math.floor(rawIndex);
+        if (index >= totalTransitions) index = totalTransitions - 1;
+
+        const localProgress = rawIndex - index;
+        const bandCenter =
+          -config.spreadAbove + localProgress * totalTravelRange;
+
+        if (localProgress <= 0 || localProgress >= 1) {
+          hideAllCells();
+          updateImageClips(index, localProgress);
+        } else {
+          updateImageClips(index, localProgress);
+          updateDissolveGrid(bandCenter);
+        }
+      },
+    });
   }
-
-  function hideAllCells() {
-    cellElements.forEach((el) => (el.style.visibility = "hidden"));
-  }
-
-  ScrollTrigger.create({
-    trigger: ".spotlight",
-    start: "top top",
-    end: () => `+=${totalTransitions * window.innerHeight}`,
-    pin: true,
-    scrub: true,
-    onUpdate: (self) => {
-      const progress = self.progress;
-
-      const rawIndex = progress * totalTransitions;
-      let index = Math.floor(rawIndex);
-      if (index >= totalTransitions) index = totalTransitions - 1;
-
-      const localProgress = rawIndex - index;
-
-      const bandCenter = -config.spreadAbove + localProgress * totalTravelRange;
-
-      if (localProgress <= 0 || localProgress >= 1) {
-        hideAllCells();
-        updateImageClips(index, localProgress);
-      } else {
-        updateImageClips(index, localProgress);
-        updateDissolveGrid(bandCenter);
-      }
-    },
-  });
 </script>

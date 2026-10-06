@@ -1,0 +1,215 @@
+---
+import ASCIIText from "./react/AsciiText";
+
+const projects = [
+  {
+    title: "Guitar Tablature Generator",
+    description:
+      "A web app that generates guitar tablature from an uploaded video via pitch detection and hand tracking.",
+    tags: ["Pitch detection", "Hand tracking", "Web"],
+    href: "https://github.com/bertie-simmons",
+    status: "In progress",
+  },
+  {
+    title: "Spotify Music Finder",
+    description:
+      "A web app that surfaces DJ-relevant metadata (key, BPM, label) and finds similar tracks via the Spotify API and Playback SDK.",
+    tags: ["Spotify API", "Cosine similarity", "React"],
+    href: "https://github.com/bertie-simmons",
+    status: "Archived",
+  },
+];
+---
+
+<section class="projects">
+  <div class="projects__inner">
+    <h2 class="projects__ascii">
+      <span class="visually-hidden">Projects</span>
+      <span class="projects__ascii-render" aria-hidden="true">
+        <ASCIIText
+          client:visible
+          text="Projects"
+          enableWaves={false}
+          asciiFontSize={8}
+          textFontSize={200}
+        />
+      </span>
+    </h2>
+
+    <ol class="projects__list">
+      {
+        projects.map((project, i) => (
+          <li class="project">
+            <a class="project__link" href={project.href}>
+              <span class="project__index">
+                {String(i + 1).padStart(2, "0")}
+              </span>
+              <span class="project__main">
+                <span class="project__title-row">
+                  <span class="project__title">{project.title}</span>
+                  <span class="project__meta">{project.status}</span>
+                </span>
+                <span class="project__desc">{project.description}</span>
+                <span class="project__tags">
+                  {project.tags.map((tag) => (
+                    <span class="project__tag">{tag}</span>
+                  ))}
+                </span>
+              </span>
+              <span class="project__arrow" aria-hidden="true">↗</span>
+            </a>
+          </li>
+        ))
+      }
+    </ol>
+  </div>
+</section>
+
+<style>
+  .projects {
+    position: relative;
+    padding: var(--space-2xl) var(--gutter);
+    border-top: var(--hairline) solid var(--line);
+    background-color: var(--bg);
+  }
+
+  .projects__inner {
+    max-width: var(--content-max);
+    margin-inline: auto;
+  }
+
+  /* The ASCII render is the section title. Constrained to a left-hand column
+     so the (internally-centered) word sits against the content margin. */
+  /* The render's glyphs only fill the upper part of the box, and the box
+     height also drives the text size, so pull the list up into the empty
+     lower part rather than shrinking the box. */
+  .projects__ascii {
+    --ascii-h: clamp(220px, 32vw, 400px);
+    position: relative;
+    width: min(100%, 40rem);
+    height: var(--ascii-h);
+    margin: 0 0 calc(var(--ascii-h) * -0.28);
+  }
+
+  .projects__ascii-render {
+    position: absolute;
+    inset: 0;
+  }
+
+  /* Nudge the vendored render hard against the left edge of its box. */
+  .projects__ascii-render :global(pre),
+  .projects__ascii-render :global(canvas) {
+    left: 0 !important;
+  }
+
+  .projects__ascii-render :global(pre) {
+    transform: translateY(-50%) !important;
+  }
+
+  .projects__list {
+    position: relative;
+    z-index: 1;
+    border-top: var(--hairline) solid var(--line);
+  }
+
+  .project {
+    border-bottom: var(--hairline) solid var(--line);
+  }
+
+  .project__link {
+    display: grid;
+    grid-template-columns: 3ch 1fr auto;
+    gap: var(--space-m);
+    align-items: start;
+    padding-block: var(--space-m);
+    text-decoration: none;
+    color: inherit;
+    transition: background-color 0.2s ease, padding-inline 0.2s ease;
+  }
+
+  .project__link:hover,
+  .project__link:focus-visible {
+    background-color: var(--fg);
+    color: var(--bg);
+    padding-inline: var(--space-s);
+    outline: none;
+  }
+
+  .project__index {
+    font-family: var(--font-body);
+    font-size: var(--step--1);
+    color: var(--muted);
+    padding-top: 0.4em;
+  }
+
+  .project__link:hover .project__index,
+  .project__link:hover .project__meta {
+    color: var(--faint);
+  }
+
+  .project__main {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+  }
+
+  .project__title-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-xs) var(--space-s);
+  }
+
+  .project__title {
+    font-size: var(--step-1);
+    font-weight: 500;
+  }
+
+  .project__meta {
+    font-family: "SF Pro Display";
+    font-weight: 600;
+    font-size: var(--step--1);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+  }
+
+  .project__desc {
+    font-family: "SF Pro Display";
+    font-weight: 500;
+    max-width: var(--measure);
+    color: inherit;
+  }
+
+  .project__tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-xs);
+    margin-top: var(--space-2xs);
+  }
+
+  .project__tag {
+    font-family: "SF Pro Display";
+    font-weight: 500;
+    font-size: var(--step--1);
+    padding: 0.15em 0.6em;
+    border: var(--hairline) solid currentColor;
+  }
+
+  .project__arrow {
+    font-size: var(--step-1);
+    line-height: 1;
+    padding-top: 0.15em;
+  }
+
+  @media (max-width: 34rem) {
+    .project__link {
+      grid-template-columns: 1fr auto;
+      gap: var(--space-s);
+    }
+
+    .project__index {
+      display: none;
+    }
+  }
+</style>

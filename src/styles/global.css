@@ -1,5 +1,259 @@
-* {
+/* Self-hosted fonts (bundled, no render-blocking CDN request) */
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+@import "@fontsource/ibm-plex-mono/600.css";
+@import "@fontsource-variable/pixelify-sans/index.css";
+
+/* Local fonts from /public/fonts */
+@font-face {
+  font-family: "SF Pro Display";
+  src: url("/fonts/thin.otf") format("opentype");
+  font-weight: 100;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "SF Pro Display";
+  src: url("/fonts/ultralight.otf") format("opentype");
+  font-weight: 200;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "SF Pro Display";
+  src: url("/fonts/light.otf") format("opentype");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "SF Pro Display";
+  src: url("/fonts/regular.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "SF Pro Display";
+  src: url("/fonts/medium.otf") format("opentype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "SF Pro Display";
+  src: url("/fonts/semibold.otf") format("opentype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "SF Pro Display";
+  src: url("/fonts/bold.otf") format("opentype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "SF Pro Display";
+  src: url("/fonts/heavy.otf") format("opentype");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "SF Pro Display";
+  src: url("/fonts/black.otf") format("opentype");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Lenis smooth-scroll base styles */
+@import "lenis/dist/lenis.css";
+
+/* ------------------------------------------------------------------ *
+ * Design tokens
+ * ------------------------------------------------------------------ */
+:root {
+  /* Colour — committed light, terminal palette */
+  --bg: #ffffff;
+  --fg: #000000;
+  --muted: #6b6b6b;
+  --faint: #d9d9d9;
+  --line: #000000;
+  --grid: #ededed;
+  --selection: #000000;
+  --selection-text: #ffffff;
+
+  /* Type */
+  --font-mono: "Pixelify Sans Variable", ui-monospace, "SF Mono", "Courier New", monospace;
+  --font-ascii: "IBM Plex Mono", var(--font-mono);
+  --font-body: "SF Pro Display", system-ui, -apple-system, sans-serif;
+  --font-pixel: "Pixelify Sans Variable", var(--font-mono);
+
+  /* Fluid type scale (min 320px → max 1240px viewport) */
+  --step--1: clamp(0.78rem, 0.74rem + 0.18vw, 0.89rem);
+  --step-0: clamp(0.9rem, 0.85rem + 0.25vw, 1.05rem);
+  --step-1: clamp(1.08rem, 0.98rem + 0.5vw, 1.4rem);
+  --step-2: clamp(1.3rem, 1.1rem + 1vw, 2rem);
+  --step-3: clamp(1.6rem, 1.2rem + 2vw, 3rem);
+  --step-4: clamp(2rem, 1.3rem + 3.5vw, 4.5rem);
+
+  /* Spacing scale */
+  --space-2xs: 0.25rem;
+  --space-xs: 0.5rem;
+  --space-s: 1rem;
+  --space-m: 1.75rem;
+  --space-l: 3rem;
+  --space-xl: 5rem;
+  --space-2xl: 8rem;
+
+  /* Layout */
+  --measure: 42rem;
+  --content-max: 68rem;
+  --gutter: clamp(1.25rem, 5vw, 4rem);
+  --hairline: 1px;
+
+  color-scheme: light;
+}
+
+/* ------------------------------------------------------------------ *
+ * Reset / base
+ * ------------------------------------------------------------------ */
+*,
+*::before,
+*::after {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  tab-size: 2;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-mono);
+  font-size: var(--step-0);
+  line-height: 1.6;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  /* `clip` (not `hidden`/`auto`) contains stray horizontal overflow from
+     full-bleed sections without turning <body> into a scroll container —
+     which would break ScrollTrigger pinning and Lenis. */
+  overflow-x: clip;
+}
+
+img,
+picture,
+svg,
+canvas {
+  display: block;
+  max-width: 100%;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+a {
+  color: inherit;
+  text-decoration-thickness: var(--hairline);
+  text-underline-offset: 0.2em;
+}
+
+ul,
+ol {
+  list-style: none;
+}
+
+::selection {
+  background: var(--selection);
+  color: var(--selection-text);
+}
+
+:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: 3px;
+}
+
+/* ------------------------------------------------------------------ *
+ * Shared section primitives — the ASCII / terminal look
+ * ------------------------------------------------------------------ */
+.section {
+  position: relative;
+  padding-block: var(--space-2xl);
+  padding-inline: var(--gutter);
+  border-top: var(--hairline) solid var(--line);
+  background-color: var(--bg);
+}
+
+.section__inner {
+  max-width: var(--content-max);
+  margin-inline: auto;
+}
+
+/* Monospace "// label" eyebrow used to head each section */
+.eyebrow {
+  font-family: var(--font-body);
+  font-size: var(--step--1);
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--muted);
+  margin-bottom: var(--space-m);
+}
+
+.eyebrow::before {
+  content: "// ";
+}
+
+.prose {
+  max-width: var(--measure);
+}
+
+.prose p + p {
+  margin-top: var(--space-s);
+}
+
+/* Accessible label that stays out of the visual layout. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ------------------------------------------------------------------ *
+ * Motion preferences
+ * ------------------------------------------------------------------ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }

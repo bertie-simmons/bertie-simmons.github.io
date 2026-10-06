@@ -1,0 +1,209 @@
+---
+// Spinning 3D scan of my face (public/models/MyFace.glb), rendered with a
+// 1-bit ordered (Bayer) dither so it matches the site's monochrome look.
+//
+// The shader lights the model, converts it to luminance, then compares that
+// against an 8x8 Bayer threshold in screen space. "Ink" pixels are drawn in
+// var(--fg); everything else is discarded so the page background shows
+// through. Three.js is only fetched once the canvas nears the viewport.
+---
+
+<div class="dither-face">
+  <canvas class="dither-face__canvas" aria-label="A rotating, dithered 3D scan of my face" role="img"></canvas>
+</div>
+
+<style>
+  .dither-face {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+  }
+
+  .dither-face__canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+</style>
+
+<script>
+  // @ts-nocheck -- `three` ships no type declarations in this project.
+
+  const MODEL_URL = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/models/MyFace.glb`;
+  const PIXEL_SIZE = 1.8; // size of one dither "dot" in CSS pixels
+  const SPIN_SPEED = 0.2; // radians per second
+
+  const vertexShader = /* glsl */ `
+    varying vec2 vUv;
+    varying vec3 vNormal;
+    varying vec3 vObjectNormal;
+    varying vec3 vViewDir;
+
+    void main() {
+      vUv = uv;
+      vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+      vNormal = normalize(normalMatrix * normal);
+      vObjectNormal = normalize(normal);
+      vViewDir = normalize(-mvPosition.xyz);
+      gl_Position = projectionMatrix * mvPosition;
+    }
+  `;
+
+  const fragmentShader = /* glsl */ `
+    uniform sampler2D uMap;
+    uniform bool uHasMap;
+    uniform vec3 uInk;
+    uniform vec3 uPaper;
+    uniform vec3 uLightDir;
+    uniform float uPixelSize;
+    uniform float uContrast;
+    uniform float uBrightness;
+    uniform float uTextureMix;
+
+    varying vec2 vUv;
+    varying vec3 vNormal;
+    varying vec3 vObjectNormal;
+    varying vec3 vViewDir;
+
+    // Recursive Bayer matrix, returns a threshold in [0, 1).
+    float bayer2(vec2 a) { a = floor(a); return fract(dot(a, vec2(0.5, a.y * 0.75))); }
+    float bayer4(vec2 a) { return bayer2(0.5 * a) * 0.25 + bayer2(a); }
+    float bayer8(vec2 a) { return bayer4(0.5 * a) * 0.25 + bayer2(a); }
+
+    void main() {
+      vec3 n = normalize(vNormal);
+      vec3 objectN = normalize(vObjectNormal);
+      if (!gl_FrontFacing) {
+        n = -n;
+        objectN = -objectN;
+      }
+
+      // uLightDir is in the model's own space, so the light turns with the
+      // head and the same side of the face always stays lit.
+      float diffuse = max(dot(objectN, normalize(uLightDir)), 0.0);
+      float rim = pow(1.0 - max(dot(n, normalize(vViewDir)), 0.0), 3.0);
+      float light = 0.25 + 0.85 * diffuse + 0.35 * rim;
+
+      // The scan's texture is quite dark, so boost it and only blend part of
+      // it in: lighting carries the form, the texture adds facial detail.
+      float albedo = 1.0;
+      if (uHasMap) {
+        vec3 tex = texture2D(uMap, vUv).rgb;
+        float texLum = clamp(dot(tex, vec3(0.299, 0.587, 0.114)) * 2.0, 0.0, 1.0);
+        albedo = mix(1.0, texLum, uTextureMix);
+      }
+
+      float lum = clamp((albedo * light - 0.5) * uContrast + 0.5 + uBrightness, 0.0, 1.0);
+
+      // Dark areas get ink; compare against the Bayer threshold per dot.
+      float threshold = bayer8(gl_FragCoord.xy / uPixelSize);
+      // Paint "off" dots in the page colour rather than discarding them, so
+      // the head writes depth and stays opaque instead of showing its far side.
+      bool ink = 1.0 - lum > threshold;
+      gl_FragColor = vec4(ink ? uInk : uPaper, 1.0);
+    }
+  `;
+
+  async function init(root: HTMLElement) {
+    const canvas = root.querySelector("canvas");
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    const [THREE, { GLTFLoader }] = await Promise.all([
+      import("three"),
+      import("three/examples/jsm/loaders/GLTFLoader.js"),
+    ]);
+
+    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: false });
+    renderer.setClearColor(0x000000, 0);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
+    camera.position.set(0, 0, 4);
+
+    const styles = getComputedStyle(root);
+    const ink = new THREE.Color(styles.getPropertyValue("--fg").trim() || "#000");
+    const paper = new THREE.Color(styles.getPropertyValue("--bg").trim() || "#fff");
+
+    const uniforms = {
+      uMap: { value: null },
+      uHasMap: { value: false },
+      uInk: { value: ink },
+      uPaper: { value: paper },
+      uLightDir: { value: new THREE.Vector3(0.6, 0.5, 1.0) },
+      uPixelSize: { value: PIXEL_SIZE * Math.min(window.devicePixelRatio, 2) },
+      uContrast: { value: 1.3 },
+      uBrightness: { value: 0.05 },
+      uTextureMix: { value: 0.6 },
+    };
+
+    const gltf = await new GLTFLoader().loadAsync(MODEL_URL);
+    const face = gltf.scene;
+
+    face.traverse((obj) => {
+      if (!obj.isMesh) return;
+      const map = obj.material.map ?? null;
+      obj.material = new THREE.ShaderMaterial({
+        uniforms: { ...uniforms, uMap: { value: map }, uHasMap: { value: !!map } },
+        vertexShader,
+        fragmentShader,
+        side: THREE.DoubleSide,
+      });
+    });
+
+    // Centre the model on the origin and scale it to fit a ~2 unit box.
+    const box = new THREE.Box3().setFromObject(face);
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+    face.position.sub(center);
+    const pivot = new THREE.Group();
+    pivot.add(face);
+    pivot.scale.setScalar(2 / Math.max(size.x, size.y, size.z));
+    scene.add(pivot);
+
+    function resize() {
+      const { width, height } = canvas.getBoundingClientRect();
+      if (!width || !height) return;
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(width, height, false);
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      render();
+    }
+
+    const render = () => renderer.render(scene, camera);
+    new ResizeObserver(resize).observe(canvas);
+    resize();
+
+    if (reducedMotion) {
+      pivot.rotation.y = -0.4;
+      render();
+      return;
+    }
+
+    // Only animate while the canvas is on screen.
+    const clock = new THREE.Clock();
+    let visible = true;
+    new IntersectionObserver(([entry]) => {
+      visible = entry.isIntersecting;
+      clock.getDelta(); // drop time spent offscreen
+    }).observe(canvas);
+
+    renderer.setAnimationLoop(() => {
+      if (!visible) return;
+      pivot.rotation.y += clock.getDelta() * SPIN_SPEED;
+      render();
+    });
+  }
+
+  document.querySelectorAll<HTMLElement>(".dither-face").forEach((root) => {
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((e) => e.isIntersecting)) return;
+        io.disconnect();
+        init(root).catch((err) => console.error("DitherFace failed to load", err));
+      },
+      { rootMargin: "200px" }
+    );
+    io.observe(root);
+  });
+</script>

@@ -1,0 +1,134 @@
+---
+const links = [
+  { label: "GitHub", href: "https://github.com/bertie-simmons", handle: "bertie-simmons" },
+  {
+    label: "LinkedIn",
+    href: "https://www.linkedin.com/in/bertram-simmons/",
+    handle: "in/bertram-simmons",
+  },
+  { label: "Email", href: "mailto:bertram.dys@gmail.com", handle: "bertram.dys@gmail.com" },
+];
+---
+
+<section class="contact">
+  <div class="contact__inner">
+    <p class="eyebrow">contact</p>
+
+    <h2 class="contact__lead">Let's build something.</h2>
+
+    <ul class="contact__list">
+      {
+        links.map((link) => (
+          <li class="contact__item">
+            <a class="contact__link" href={link.href}>
+              <span class="contact__label">{link.label}</span>
+              <span class="contact__handle">{link.handle}</span>
+              <span class="contact__arrow" aria-hidden="true">↗</span>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+
+    <p class="contact__foot">© {new Date().getFullYear()} Bertram Simmons</p>
+  </div>
+</section>
+
+<style>
+  .eyebrow {
+    font-family: "SF Pro Display";
+    font-weight: 700;
+  }
+
+  .contact {
+    padding: var(--space-2xl) var(--gutter) var(--space-xl);
+    border-top: var(--hairline) solid var(--line);
+    background-color: var(--fg);
+    color: var(--bg);
+  }
+
+  .contact__inner {
+    max-width: var(--content-max);
+    margin-inline: auto;
+  }
+
+  .contact .eyebrow {
+    color: var(--faint);
+  }
+
+  .contact__lead {
+    font-size: var(--step-3);
+    font-weight: 500;
+    margin-bottom: var(--space-l);
+  }
+
+  .contact__list {
+    border-top: var(--hairline) solid var(--bg);
+  }
+
+  .contact__item {
+    border-bottom: var(--hairline) solid var(--bg);
+  }
+
+  .contact__link {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-m);
+    padding-block: var(--space-m);
+    text-decoration: none;
+    color: inherit;
+    transition: padding-inline 0.2s ease, background-color 0.2s ease,
+      color 0.2s ease;
+  }
+
+  .contact__link:hover,
+  .contact__link:focus-visible {
+    background-color: var(--bg);
+    color: var(--fg);
+    padding-inline: var(--space-s);
+    outline: none;
+  }
+
+  .contact__label {
+    font-size: var(--step-1);
+    font-weight: 500;
+    flex: 0 0 8rem;
+  }
+
+  .contact__handle {
+    font-family: "SF Pro Display";
+    font-weight: 700;
+    font-size: var(--step--1);
+    color: var(--muted);
+    flex: 1;
+  }
+
+  .contact__link:hover .contact__handle {
+    color: var(--muted);
+  }
+
+  .contact__arrow {
+    font-size: var(--step-1);
+  }
+
+  .contact__foot {
+    margin-top: var(--space-xl);
+    font-family: "SF Pro Display";
+    font-weight: 500;
+    font-size: var(--step--1);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+
+  @media (max-width: 34rem) {
+    .contact__link {
+      flex-wrap: wrap;
+      gap: var(--space-2xs) var(--space-s);
+    }
+
+    .contact__label {
+      flex-basis: 100%;
+    }
+  }
+</style>

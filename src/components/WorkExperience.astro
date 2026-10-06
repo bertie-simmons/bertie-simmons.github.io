@@ -1,0 +1,104 @@
+---
+const roles = [
+  {
+    title: "Junior Technology Consultant — Internship",
+    company: "JE3",
+    notes: [],
+  },
+];
+---
+
+<section class="work">
+  <div class="work__inner">
+    <p class="eyebrow">work experience</p>
+
+    <ol class="work__list">
+      {
+        roles.map((role) => (
+          <li class="role">
+            <div class="role__head">
+              <h3 class="role__title">{role.title}</h3>
+              <span class="role__company">{role.company}</span>
+            </div>
+            {role.notes.length > 0 && (
+              <ul class="role__notes">
+                {role.notes.map((note) => (
+                  <li>{note}</li>
+                ))}
+              </ul>
+            )}
+          </li>
+        ))
+      }
+    </ol>
+  </div>
+</section>
+
+<style>
+  .eyebrow {
+    font-family: "SF Pro Display";
+    font-weight: 700;
+  }
+
+  .work {
+    padding: var(--space-2xl) var(--gutter);
+    border-top: var(--hairline) solid var(--line);
+    background-color: var(--bg);
+  }
+
+  .work__inner {
+    max-width: var(--content-max);
+    margin-inline: auto;
+  }
+
+  .work__list {
+    border-top: var(--hairline) solid var(--line);
+  }
+
+  .role {
+    padding-block: var(--space-m);
+    border-bottom: var(--hairline) solid var(--line);
+  }
+
+  .role__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-xs) var(--space-m);
+  }
+
+  .role__title {
+    font-size: var(--step-1);
+    font-weight: 500;
+  }
+
+  .role__company {
+    font-family: var(--font-body);
+    font-size: var(--step--1);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+  }
+
+  .role__notes {
+    margin-top: var(--space-s);
+    max-width: var(--measure);
+    color: var(--muted);
+  }
+
+  .role__notes li {
+    padding-left: 1.4em;
+    position: relative;
+  }
+
+  .role__notes li + li {
+    margin-top: var(--space-2xs);
+  }
+
+  .role__notes li::before {
+    content: "–";
+    position: absolute;
+    left: 0;
+  }
+</style>

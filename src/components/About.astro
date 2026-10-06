@@ -1,0 +1,90 @@
+---
+import DitherFace from "./DitherFace.astro";
+---
+
+<section class="about">
+  <div class="about__inner">
+    <div class="about__text">
+
+      <h2 class="about__lead">
+        I'm Bertram Simmons
+      </h2>
+
+      <h3 class="about__lead">
+        A Computer Science student at Newcastle University
+        who likes bringing ideas into reality, whether through code, art or music.
+      </h3>
+
+      <div class="prose about__body">
+        <p>
+          Outside of studies I'm a creative at heart: painting, DJing, and
+          experimenting with music production.
+        </p>
+        <p>
+          I enjoy combining technical skills with creative pursuits, often
+          building projects that solve problems I run into along the way.
+        </p>
+      </div>
+    </div>
+
+    <div class="about__face">
+      <DitherFace />
+    </div>
+  </div>
+</section>
+
+<style>
+  .about {
+    width: 100%;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    background-color: var(--bg);
+    color: var(--fg);
+    padding: var(--space-xl) var(--gutter);
+  }
+
+  .about__inner {
+    max-width: var(--content-max);
+    margin-inline: auto;
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    align-items: center;
+    gap: var(--space-l);
+  }
+
+  .about__face {
+    width: 100%;
+    max-width: 30rem;
+    justify-self: end;
+  }
+
+  @media (max-width: 48rem) {
+    .about__inner {
+      grid-template-columns: 1fr;
+    }
+
+    .about__face {
+      max-width: 18rem;
+      justify-self: center;
+      order: -1;
+    }
+  }
+
+  .about__lead {
+    font-size: var(--step-2);
+    font-weight: 500;
+    max-width: 28ch;
+    margin-bottom: var(--space-l);
+  }
+
+  .about__body {
+    color: var(--muted);
+    font-size: var(--step-0);
+    font-family: "SF Pro Display";
+    font-weight: 500;
+    border-top: var(--hairline) solid var(--line);
+    padding-top: var(--space-m);
+  }
+</style>

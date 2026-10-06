@@ -1,0 +1,64 @@
+---
+---
+<section>
+  <div>
+    <p class="text-3xl lg:text-3xl max-w-xl font-bold">
+      Spotify Music Finder
+    </p>
+
+    <p class="text-3xl lg:text-2xl max-w-xl font-semibold">
+      The Problem
+    </p>
+
+    <p class="text-3xl lg:text-2xl max-w-xl">
+      When DJing, you spend 80% of the time finding and downloading music to 
+      play rather than actually DJing. This can be a tedious process as UIs like Spotify
+      or Soundcloud aren't designed for DJs; they hide important metadata like key, bpm and record label. 
+      Services designed for DJs like beatport are expensive and have a limited library of music.
+    </p>
+
+    <p class="text-3xl lg:text-2xl max-w-xl">
+      I saw this as an opportunity to build my own take on music discovery and learn how searching algorithms work.
+    </p>
+
+    <p class="text-3xl lg:text-2xl max-w-xl font-semibold">
+      My Solution 
+    </p>
+
+    <p class="text-3xl lg:text-2xl max-w-xl">
+      I developed a web application enabling users to discover music showing the metadata they need and
+      with more searching algorithms whilst retaining the large music library of Spotify.
+    </p>
+
+    <p class="text-3xl lg:text-2xl max-w-xl">
+      It works via the Spotify API and Playback SDK to utilise live playback and Spotify's large library.
+      The Spotify API provides the valuable metadata which is normally hidden to the user. This metadata
+      would be used to search for similar songs using algorithms like cosine similarity.
+    </p>
+
+    <p class="text-3xl lg:text-2xl max-w-xl font-semibold">
+      Reflection
+    </p>
+
+    <p class="text-3xl lg:text-2xl max-w-xl">
+      However, when I was nearing the end of the project, Spotify depricated fundamental API endpoints
+      that I used to get the metadata of songs. This was due to people abusing the TOS by using the API to train AIs and
+      also due to Spotify a few months later releasing their own DJ tool called Spotify DJ.
+    </p>
+
+    <p class="text-3xl lg:text-2xl max-w-xl">
+      At the time, my solution to this was to implement another external API being the Reccobeat API but their library wasn't merely as large as Spotify's. This taught me an 
+      important lesson of being weary of relying on external APIs for core functionality of your project as they can 
+      change or go down at any time.
+    </p>
+
+    <p class="text-3xl lg:text-3xl max-w-xl font-bold mt-15">
+      Guitar Tabs Generator
+    </p>
+
+    <p class="text-xl lg:text-xl max-w-xl">
+      Work in progress...
+    </p>
+
+  </div>
+</section>
